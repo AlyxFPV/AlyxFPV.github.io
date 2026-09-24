@@ -169,6 +169,8 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 .per-piece { color: var(--muted); font-size: 0.9rem; margin-top: 4px; text-align: right; }
 .rows { margin: 16px 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .rows li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.93rem; }
+.rows li[hidden] { display: none; }
+.rows li.discount span:last-child { color: var(--ok); }
 .rows li span:first-child { color: var(--muted); }
 .rows li span:last-child { font-weight: 600; text-align: right; }
 .note { margin: 12px 0 0; font-size: 0.82rem; color: var(--muted); }
@@ -208,6 +210,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     <input type="hidden" name="Price per piece" id="fPricePiece" value="">
     <input type="hidden" name="Shipping" id="fShipping" value="">
     <input type="hidden" name="VAT" id="fVat" value="">
+    <input type="hidden" name="Bulk discount" id="fDiscount" value="">
     <input type="hidden" name="Model file" id="fFile" value="">
     <input type="hidden" name="Dimensions" id="fDims" value="">
     <input type="hidden" name="Model volume" id="fVolume" value="">
@@ -265,6 +268,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
             <li><span>Print cost</span><span id="rSubtotal">–</span></li>
             <li><span>Shipping</span><span id="rShipping">–</span></li>
             <li><span id="vatLabel">VAT</span><span id="rVat">–</span></li>
+            <li id="discountRow" hidden><span id="discountLabel">Bulk discount</span><span id="rDiscount">–</span></li>
             <li><span>Size</span><span id="rDims">–</span></li>
             <li><span>Filament used</span><span id="rWeight">–</span></li>
             <li><span>Print time</span><span id="rTime">–</span></li>
@@ -331,6 +335,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     electricityPerKWh: 0.20,
     printerWearPerHour: 0.10,
     vatPercent: 24,          // Estonian standard VAT rate (24% since July 2025) — edit if it changes
+    bulkDiscount: { minQty: 2, percent: 5 },  // -5% off the total when ordering 2+ of the same piece
     shipping: {
       zones: {
         domestic: { label: "Estonia", price: 4.00 },
@@ -404,7 +409,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       },
       {
         id: "tpu", name: "TPU 95A", density: 1.21, pricePerKg: 30, flow: 2.5,
-        desc: "Flexible and shock absorbing. For guards, bumpers, mounts.",
+        desc: "Flexible and shock absorbing. Often used in FPV for guards, bumpers, mounts.",
         stock: true,
         colours: [
           { name: "Black", hex: "#1E1F22", stock: true },
@@ -640,7 +645,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = x.stock ? "–" : "Out of stock"; });
       $("total").textContent = "–";
       $("perPiece").textContent = "Upload a model to see the price";
-      $("rSubtotal").textContent = "–"; $("rShipping").textContent = "–"; $("rVat").textContent = "–";
+      $("rSubtotal").textContent = "–"; $("rShipping").textContent = "–"; $("rVat").textContent = "–"; $("discountRow").hidden = true;
       $("rDims").textContent = "–"; $("rWeight").textContent = "–"; $("rTime").textContent = "–";
       refreshSubmit();
       return;
@@ -648,8 +653,12 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 
     CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = x.stock ? money.format(quote(x, state.qty).total) : "Out of stock"; });
     var q = quote(m, state.qty);
-    var vatAmount = round2((q.total + shipPrice) * CONFIG.vatPercent / 100);
-    var grandTotal = round2(q.total + shipPrice + vatAmount);
+    var shipTotal = round2(shipPrice * state.qty);
+    var vatAmount = round2((q.total + shipTotal) * CONFIG.vatPercent / 100);
+    var rawTotal = round2(q.total + shipTotal + vatAmount);
+    var discountOn = state.qty >= CONFIG.bulkDiscount.minQty;
+    var discountAmount = discountOn ? round2(rawTotal * CONFIG.bulkDiscount.percent / 100) : 0;
+    var grandTotal = round2(rawTotal - discountAmount);
     var dims = num1.format(model.size.x) + " × " + num1.format(model.size.y) + " × " + num1.format(model.size.z) + " mm";
     var weight = q.grams >= 1000 ? num1.format(q.grams / 1000) + " kg" : num1.format(q.grams) + " g";
 
@@ -658,16 +667,22 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       ? money.format(round2(grandTotal / state.qty)) + " per piece, " + state.qty + " pcs"
       : m.name + ", " + state.colour;
     $("rSubtotal").textContent = money.format(q.total);
-    $("rShipping").textContent = money.format(shipPrice) + " · " + state.country;
+    $("rShipping").textContent = money.format(shipTotal) + " · " + state.country + (state.qty > 1 ? " (" + state.qty + "×)" : "");
     $("rVat").textContent = money.format(vatAmount);
+    $("discountRow").hidden = !discountOn;
+    if (discountOn) {
+      $("discountLabel").textContent = "Bulk discount (" + state.qty + "+ pcs, -" + CONFIG.bulkDiscount.percent + "%)";
+      $("rDiscount").textContent = "−" + money.format(discountAmount);
+    }
     $("rDims").textContent = dims;
     $("rWeight").textContent = weight;
     $("rTime").textContent = formatTime(q.hours);
 
     $("fPrice").value = money.format(grandTotal);
     $("fPricePiece").value = money.format(round2(grandTotal / state.qty));
-    $("fShipping").value = money.format(shipPrice) + " (" + state.country + ")";
+    $("fShipping").value = money.format(shipTotal) + " (" + state.country + ")";
     $("fVat").value = money.format(vatAmount) + " (" + CONFIG.vatPercent + "%)";
+    $("fDiscount").value = discountOn ? ("-" + CONFIG.bulkDiscount.percent + "% = -" + money.format(discountAmount)) : "";
     $("fDims").value = dims;
     $("fVolume").value = num1.format(q.volume / 1000) + " cm³";
     $("fWeight").value = weight;
