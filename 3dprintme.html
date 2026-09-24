@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D Print Me! by Alyx FPV</title>
+<meta name="description" content="Upload an STL file, choose a filament and colour, and get an instant 3D printing price.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg: #EEF1F3;
+  --surface: #FFFFFF;
+  --ink: #1C2530;
+  --muted: #5B6977;
+  --line: #D5DBE1;
+  --field: #F4F6F8;
+  --accent: #D9531F;
+  --accent-ink: #FFFFFF;
+  --ok: #1E7D4F;
+  --danger: #B3261E;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131920;
+    --surface: #1B232D;
+    --ink: #E6EBF0;
+    --muted: #97A5B3;
+    --line: #2C3743;
+    --field: #222C37;
+    --accent: #F07A4E;
+    --accent-ink: #1B1208;
+    --ok: #5CC592;
+    --danger: #F2887F;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131920;
+  --surface: #1B232D;
+  --ink: #E6EBF0;
+  --muted: #97A5B3;
+  --line: #2C3743;
+  --field: #222C37;
+  --accent: #F07A4E;
+  --accent-ink: #1B1208;
+  --ok: #5CC592;
+  --danger: #F2887F;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+.wrap { max-width: 1200px; margin: 0 auto; padding: 28px 20px 48px; }
+.head { max-width: 660px; margin-bottom: 24px; }
+.head h1 { margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.03em; }
+.head p { margin: 0; color: var(--muted); font-size: 1.05rem; }
+.head-row { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.head-logo { width: 52px; height: 52px; border-radius: 14px; display: block; flex: none; }
+.head-row h1 { margin: 0; }
+
+.banner {
+  display: none; margin-bottom: 20px; padding: 14px 18px; border-radius: 14px;
+  border: 1px solid var(--ok); color: var(--ok); background: var(--surface); font-weight: 600;
+}
+.banner.show { display: block; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+.stage {
+  position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  overflow: hidden; min-height: 460px; height: 66vh; display: flex; flex-direction: column;
+}
+@media (min-width: 901px) { .stage { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); } }
+@media (max-width: 900px) { .stage { height: 50vh; min-height: 320px; } }
+.stage.dragging { outline: 3px dashed var(--accent); outline-offset: -10px; }
+.viewer { position: relative; flex: 1; min-height: 0; touch-action: none; cursor: grab; }
+.viewer:active { cursor: grabbing; }
+.viewer canvas { display: block; }
+.empty {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px; text-align: center;
+  background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 18px 18px;
+}
+.empty[hidden] { display: none; }
+.empty strong { font-size: 1.25rem; font-weight: 700; }
+.empty span { color: var(--muted); max-width: 36ch; }
+.hint { position: absolute; left: 14px; bottom: 10px; font-size: 0.8rem; color: var(--muted); pointer-events: none; }
+.hint[hidden] { display: none; }
+.infobar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 12px 16px;
+  border-top: 1px solid var(--line); font-size: 0.9rem; color: var(--muted);
+}
+.infobar[hidden] { display: none; }
+.infobar .fname { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.infobar .spacer { flex: 1; }
+
+.btn {
+  font: inherit; font-weight: 700; font-size: 1rem; border: 0; border-radius: 999px; padding: 11px 22px;
+  cursor: pointer; background: var(--accent); color: var(--accent-ink);
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); padding: 6px 14px; font-size: 0.85rem; font-weight: 600; }
+.btn.wide { width: 100%; padding: 14px 22px; font-size: 1.05rem; }
+.btn:focus-visible, input:focus-visible, textarea:focus-visible,
+.choice input:focus-visible + .choice-body, .swatch input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.panel { display: flex; flex-direction: column; gap: 16px; }
+.block { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.block h2 { margin: 0 0 12px; font-size: 1.05rem; font-weight: 700; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; }
+
+.choices { display: grid; gap: 10px; }
+.choice { position: relative; display: block; }
+.choice input { position: absolute; opacity: 0; pointer-events: none; }
+.choice-body {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px;
+  padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--field); cursor: pointer;
+}
+.choice input:checked + .choice-body { border-color: var(--accent); background: var(--surface); }
+.choice-name { font-weight: 700; }
+.choice-desc { grid-column: 1; font-size: 0.82rem; color: var(--muted); line-height: 1.35; }
+.choice-price { grid-row: 1 / span 2; grid-column: 2; font-weight: 800; font-size: 1.2rem; letter-spacing: -0.02em; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.swatch { position: relative; display: block; }
+.swatch input { position: absolute; opacity: 0; pointer-events: none; }
+.swatch span {
+  display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px;
+  border: 2px solid var(--line); background: var(--field); cursor: pointer; font-size: 0.9rem; font-weight: 500;
+}
+.swatch i { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(128,128,128,.5); display: block; }
+.swatch input:checked + span { border-color: var(--accent); background: var(--surface); }
+
+.fields { display: grid; gap: 14px; }
+.field label { display: block; font-size: 0.92rem; font-weight: 500; margin-bottom: 6px; }
+.field input, .field textarea {
+  width: 100%; font: inherit; color: var(--ink); background: var(--field);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+.field textarea { min-height: 88px; resize: vertical; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 420px) { .two { grid-template-columns: 1fr; } }
+.honey { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+.total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.total-label { font-weight: 600; }
+.total-value { font-size: clamp(2.25rem, 6vw, 3rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--accent); }
+.per-piece { color: var(--muted); font-size: 0.9rem; margin-top: 4px; text-align: right; }
+.rows { margin: 16px 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.rows li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.93rem; }
+.rows li span:first-child { color: var(--muted); }
+.rows li span:last-child { font-weight: 600; text-align: right; }
+.note { margin: 12px 0 0; font-size: 0.82rem; color: var(--muted); }
+.error { color: var(--danger); font-weight: 600; margin: 0; }
+.error[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .choice-body, .swatch span { transition: border-color .15s, background .15s; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="head">
+    <div class="head-row">
+      <img class="head-logo" src="3dprintme-logo.webp" alt="3D Print Me! logo">
+      <h1>3D Print Me!</h1>
+    </div>
+    <p>Upload an STL file, pick a filament and colour, and see the price right away. Send the order and I will reply by email to confirm the details.</p>
+  </header>
+
+  <div class="banner" id="sentBanner" role="status">Thanks, your order was sent. I will reply to your email soon.</div>
+
+  <form id="orderForm" action="https://formsubmit.co/alyxfpv@gmail.com" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="_subject" id="fSubject" value="New 3D Print Me! order">
+    <input type="hidden" name="_template" value="table">
+    <input type="hidden" name="_next" id="fNext" value="">
+    <input type="hidden" name="_autoresponse" value="Thanks for your 3D Print Me! order! I have received your model and will reply soon to confirm the price and delivery time.">
+    <input type="hidden" name="Material" id="fMaterial" value="">
+    <input type="hidden" name="Colour" id="fColour" value="">
+    <input type="hidden" name="Estimated price" id="fPrice" value="">
+    <input type="hidden" name="Price per piece" id="fPricePiece" value="">
+    <input type="hidden" name="Model file" id="fFile" value="">
+    <input type="hidden" name="Dimensions" id="fDims" value="">
+    <input type="hidden" name="Model volume" id="fVolume" value="">
+    <input type="hidden" name="Estimated filament" id="fWeight" value="">
+    <input type="hidden" name="Estimated print time" id="fTime" value="">
+    <div class="honey" aria-hidden="true"><input type="text" name="_honey" tabindex="-1" autocomplete="off"></div>
+
+    <div class="grid">
+      <section class="stage" id="stage" aria-label="Model preview">
+        <div class="viewer" id="viewer">
+          <div class="empty" id="empty">
+            <strong>Drop your STL file here</strong>
+            <span>Binary and ASCII STL up to 10 MB. Dimensions are read in millimetres.</span>
+            <button class="btn" type="button" id="pickBtn">Choose file</button>
+            <p class="error" id="error" hidden></p>
+          </div>
+          <div class="hint" id="hint" hidden>Drag to rotate. Scroll to zoom.</div>
+        </div>
+        <div class="infobar" id="infobar" hidden>
+          <span class="fname" id="fname"></span>
+          <span id="dims"></span>
+          <span id="fsize"></span>
+          <span class="spacer"></span>
+          <button class="btn ghost" type="button" id="replaceBtn">Replace file</button>
+        </div>
+        <input type="file" name="attachment" id="fileInput" accept=".stl" hidden>
+      </section>
+
+      <div class="panel">
+        <div class="block">
+          <fieldset>
+            <legend>Filament</legend>
+            <div class="choices" id="materialList"></div>
+          </fieldset>
+        </div>
+
+        <div class="block">
+          <fieldset>
+            <legend id="colourLegend">Colour</legend>
+            <div class="swatches" id="colourList"></div>
+          </fieldset>
+        </div>
+
+        <div class="block" aria-live="polite">
+          <div class="total">
+            <span class="total-label">Estimated price</span>
+            <div>
+              <div class="total-value" id="total">–</div>
+              <div class="per-piece" id="perPiece">Upload a model to see the price</div>
+            </div>
+          </div>
+          <ul class="rows">
+            <li><span>Size</span><span id="rDims">–</span></li>
+            <li><span>Filament used</span><span id="rWeight">–</span></li>
+            <li><span>Print time</span><span id="rTime">–</span></li>
+          </ul>
+          <p class="note" id="minNote"></p>
+        </div>
+
+        <div class="block">
+          <h2>Your details</h2>
+          <div class="fields">
+            <div class="two">
+              <div class="field">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="Name" required autocomplete="name">
+              </div>
+              <div class="field">
+                <label for="qty">Quantity</label>
+                <input type="number" id="qty" name="Quantity" min="1" max="100" step="1" value="1" required>
+              </div>
+            </div>
+            <div class="field">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" required autocomplete="email">
+            </div>
+            <div class="field">
+              <label for="comment">Comment (optional)</label>
+              <textarea id="comment" name="Comment" placeholder="Anything I should know: where the part goes, deadline, special wishes"></textarea>
+            </div>
+            <p class="error" id="submitError" hidden></p>
+            <button class="btn wide" type="submit" id="submitBtn" disabled>Submit order</button>
+            <p class="note">Submitting sends your model and details by email. The price is an estimate; I will confirm the final price before printing.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ===================== SETTINGS: edit these ===================== */
+  var CONFIG = {
+    pageUrl: "https://alyxfpv.github.io/3dprintme.html",
+    currency: "EUR",
+    locale: "en-IE",
+    maxFileMB: 10,
+    minOrder: 5.00,          // minimum price for the whole order
+    markupPercent: 30,       // your margin on top of costs
+    infillPercent: 20,
+    walls: 3,                // perimeters, 0.4 mm each
+    wastePercent: 10,        // supports, brim, purge
+    printerPowerW: 150,
+    electricityPerKWh: 0.20,
+    printerWearPerHour: 0.10,
+    materials: [
+      {
+        id: "pla", name: "PLA", density: 1.24, pricePerKg: 20, flow: 8.0,
+        desc: "Stiff and precise. Best for indoor parts and prototypes.",
+        colours: [
+          { name: "Black", hex: "#1E1F22" },
+          { name: "White", hex: "#F2F2EE" },
+          { name: "Grey", hex: "#8A9097" },
+          { name: "Red", hex: "#C8272D" },
+          { name: "Blue", hex: "#2156B8" },
+          { name: "Orange", hex: "#F07A1A" }
+        ]
+      },
+      {
+        id: "petg", name: "PETG", density: 1.27, pricePerKg: 23, flow: 6.0,
+        desc: "Tough and heat resistant. Good for outdoor and moto parts.",
+        colours: [
+          { name: "Black", hex: "#1E1F22" },
+          { name: "White", hex: "#F2F2EE" },
+          { name: "Grey", hex: "#8A9097" },
+          { name: "Clear", hex: "#CFE3EA" }
+        ]
+      },
+      {
+        id: "tpu", name: "TPU 95A", density: 1.21, pricePerKg: 30, flow: 2.5,
+        desc: "Flexible and shock absorbing. For guards, bumpers, mounts.",
+        colours: [
+          { name: "Black", hex: "#1E1F22" },
+          { name: "White", hex: "#F2F2EE" },
+          { name: "Red", hex: "#C8272D" }
+        ]
+      }
+    ]
+  };
+  /* ================================================================ */
+
+  var LINE_WIDTH = 0.4;
+  var WARMUP_HOURS = 0.1;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var money = new Intl.NumberFormat(CONFIG.locale, { style: "currency", currency: CONFIG.currency });
+  var num1 = new Intl.NumberFormat(CONFIG.locale, { maximumFractionDigits: 1 });
+
+  var state = { material: CONFIG.materials[0].id, colour: CONFIG.materials[0].colours[0].name, qty: 1 };
+  var model = null;
+
+  function mat() {
+    for (var i = 0; i < CONFIG.materials.length; i++) if (CONFIG.materials[i].id === state.material) return CONFIG.materials[i];
+    return CONFIG.materials[0];
+  }
+  function colourHex() {
+    var m = mat();
+    for (var i = 0; i < m.colours.length; i++) if (m.colours[i].name === state.colour) return m.colours[i].hex;
+    return m.colours[0].hex;
+  }
+
+  /* ---------- Sent banner ---------- */
+  $("fNext").value = CONFIG.pageUrl + "?sent=1";
+  if (/[?&]sent=1/.test(location.search)) {
+    $("sentBanner").classList.add("show");
+    try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ }
+  }
+
+  /* ---------- STL parsing ---------- */
+  function parseSTL(buffer) {
+    var len = buffer.byteLength;
+    var dv = new DataView(buffer);
+    if (len >= 84) {
+      var n = dv.getUint32(80, true);
+      if (84 + n * 50 === len) return parseBinary(dv, n);
+    }
+    var ascii = parseAscii(new TextDecoder("utf-8").decode(buffer));
+    if (ascii.length >= 9) return ascii;
+    if (len >= 134) {
+      var count = Math.floor((len - 84) / 50);
+      var declared = dv.getUint32(80, true);
+      return parseBinary(dv, Math.min(count, declared || count));
+    }
+    throw new Error("This doesn't look like an STL file: no triangles were found.");
+  }
+  function parseBinary(dv, n) {
+    var out = new Float32Array(n * 9);
+    for (var i = 0; i < n; i++) {
+      var off = 84 + i * 50 + 12;
+      for (var j = 0; j < 9; j++) out[i * 9 + j] = dv.getFloat32(off + j * 4, true);
+    }
+    return out;
+  }
+  function parseAscii(text) {
+    var re = /vertex\s+([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)\s+([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)\s+([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)/g;
+    var vals = [];
+    var m;
+    while ((m = re.exec(text)) !== null) vals.push(parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3]));
+    return new Float32Array(vals.slice(0, vals.length - (vals.length % 9)));
+  }
+  function measure(p) {
+    var vol = 0, area = 0;
+    var minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (var i = 0; i < p.length; i += 9) {
+      var ax = p[i], ay = p[i + 1], az = p[i + 2];
+      var bx = p[i + 3], by = p[i + 4], bz = p[i + 5];
+      var cx = p[i + 6], cy = p[i + 7], cz = p[i + 8];
+      vol += (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6;
+      var ux = bx - ax, uy = by - ay, uz = bz - az;
+      var vx = cx - ax, vy = cy - ay, vz = cz - az;
+      var nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      area += Math.sqrt(nx * nx + ny * ny + nz * nz) / 2;
+      minX = Math.min(minX, ax, bx, cx); maxX = Math.max(maxX, ax, bx, cx);
+      minY = Math.min(minY, ay, by, cy); maxY = Math.max(maxY, ay, by, cy);
+      minZ = Math.min(minZ, az, bz, cz); maxZ = Math.max(maxZ, az, bz, cz);
+    }
+    return { volume: Math.abs(vol), area: area, size: { x: maxX - minX, y: maxY - minY, z: maxZ - minZ } };
+  }
+
+  /* ---------- Pricing ---------- */
+  function formatTime(hours) {
+    var totalMin = Math.max(1, Math.round(hours * 60));
+    var h = Math.floor(totalMin / 60), m = totalMin % 60;
+    return h === 0 ? m + " min" : h + " h " + m + " min";
+  }
+  function quote(m, qty) {
+    var V = model.volume, A = model.area;
+    var shell = Math.min(V, A * CONFIG.walls * LINE_WIDTH);
+    var inner = Math.max(0, V - shell);
+    var printed = (shell + inner * CONFIG.infillPercent / 100) * (1 + CONFIG.wastePercent / 100);
+    var gramsPer = printed / 1000 * m.density;
+    var hoursPer = printed / m.flow / 3600 + WARMUP_HOURS;
+    var grams = gramsPer * qty, hours = hoursPer * qty;
+    var cost = grams / 1000 * m.pricePerKg
+             + CONFIG.printerPowerW / 1000 * hours * CONFIG.electricityPerKWh
+             + hours * CONFIG.printerWearPerHour;
+    var total = Math.max(CONFIG.minOrder, cost * (1 + CONFIG.markupPercent / 100));
+    total = Math.ceil(total * 2) / 2; // round up to 0.50
+    return { total: total, grams: grams, hours: hours, volume: V };
+  }
+
+  /* ---------- UI building ---------- */
+  function buildMaterials() {
+    var list = $("materialList");
+    list.innerHTML = "";
+    CONFIG.materials.forEach(function (m) {
+      var label = document.createElement("label");
+      label.className = "choice";
+      var input = document.createElement("input");
+      input.type = "radio"; input.name = "materialChoice"; input.value = m.id;
+      input.checked = m.id === state.material;
+      input.addEventListener("change", function () {
+        if (!input.checked) return;
+        state.material = m.id;
+        state.colour = m.colours[0].name;
+        buildColours();
+        update();
+      });
+      var body = document.createElement("span");
+      body.className = "choice-body";
+      var nm = document.createElement("span"); nm.className = "choice-name"; nm.textContent = m.name;
+      var pr = document.createElement("span"); pr.className = "choice-price"; pr.id = "price-" + m.id; pr.textContent = "–";
+      var ds = document.createElement("span"); ds.className = "choice-desc"; ds.textContent = m.desc;
+      body.appendChild(nm); body.appendChild(pr); body.appendChild(ds);
+      label.appendChild(input); label.appendChild(body);
+      list.appendChild(label);
+    });
+  }
+  function buildColours() {
+    var m = mat();
+    var list = $("colourList");
+    list.innerHTML = "";
+    $("colourLegend").textContent = "Colour (" + m.name + ")";
+    m.colours.forEach(function (c) {
+      var label = document.createElement("label");
+      label.className = "swatch";
+      var input = document.createElement("input");
+      input.type = "radio"; input.name = "colourChoice"; input.value = c.name;
+      input.checked = c.name === state.colour;
+      input.addEventListener("change", function () {
+        if (!input.checked) return;
+        state.colour = c.name;
+        update();
+      });
+      var span = document.createElement("span");
+      var dot = document.createElement("i"); dot.style.background = c.hex;
+      span.appendChild(dot);
+      span.appendChild(document.createTextNode(c.name));
+      label.appendChild(input); label.appendChild(span);
+      list.appendChild(label);
+    });
+  }
+
+  function update() {
+    var m = mat();
+    state.qty = Math.max(1, Math.min(100, Math.round(parseFloat($("qty").value) || 1)));
+    $("minNote").textContent = "Minimum order " + money.format(CONFIG.minOrder) + ". Final price is confirmed by email.";
+    $("fMaterial").value = m.name;
+    $("fColour").value = state.colour;
+    recolor();
+
+    if (!model) {
+      CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = "–"; });
+      $("total").textContent = "–";
+      $("perPiece").textContent = "Upload a model to see the price";
+      $("rDims").textContent = "–"; $("rWeight").textContent = "–"; $("rTime").textContent = "–";
+      refreshSubmit();
+      return;
+    }
+
+    CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = money.format(quote(x, state.qty).total); });
+    var q = quote(m, state.qty);
+    var dims = num1.format(model.size.x) + " × " + num1.format(model.size.y) + " × " + num1.format(model.size.z) + " mm";
+    var weight = q.grams >= 1000 ? num1.format(q.grams / 1000) + " kg" : num1.format(q.grams) + " g";
+
+    $("total").textContent = money.format(q.total);
+    $("perPiece").textContent = state.qty > 1
+      ? money.format(q.total / state.qty) + " per piece, " + state.qty + " pcs"
+      : m.name + ", " + state.colour;
+    $("rDims").textContent = dims;
+    $("rWeight").textContent = weight;
+    $("rTime").textContent = formatTime(q.hours);
+
+    $("fPrice").value = money.format(q.total);
+    $("fPricePiece").value = money.format(q.total / state.qty);
+    $("fDims").value = dims;
+    $("fVolume").value = num1.format(q.volume / 1000) + " cm³";
+    $("fWeight").value = weight;
+    $("fTime").value = formatTime(q.hours);
+    $("fFile").value = model.name;
+    $("fSubject").value = "3D Print Me! order: " + model.name + ", " + m.name + " " + state.colour + ", " + money.format(q.total);
+    refreshSubmit();
+  }
+
+  function refreshSubmit() {
+    var ok = !!model && !model.tooBig;
+    $("submitBtn").disabled = !ok;
+  }
+
+  /* ---------- 3D viewer ---------- */
+  var viewerEl = $("viewer");
+  var renderer = null, scene = null, camera = null, group = null, mesh = null;
+  var rot = { x: 0.45, y: 0.6 }, dist = 100, radius = 50;
+
+  function initViewer() {
+    if (!window.THREE) return;
+    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { renderer = null; return; }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+    viewerEl.insertBefore(renderer.domElement, viewerEl.firstChild);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000000);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x3a4652, 0.85));
+    var key = new THREE.DirectionalLight(0xffffff, 0.75);
+    key.position.set(1, 1.6, 2);
+    camera.add(key);
+    scene.add(camera);
+    group = new THREE.Group();
+    scene.add(group);
+    new ResizeObserver(resize).observe(viewerEl);
+    resize();
+
+    var dragging = false, lastX = 0, lastY = 0;
+    viewerEl.addEventListener("pointerdown", function (e) {
+      if (!mesh || e.target.closest("button")) return;
+      dragging = true; lastX = e.clientX; lastY = e.clientY;
+      viewerEl.setPointerCapture(e.pointerId);
+    });
+    viewerEl.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      rot.y += (e.clientX - lastX) * 0.01;
+      rot.x = Math.max(-1.5, Math.min(1.5, rot.x + (e.clientY - lastY) * 0.01));
+      lastX = e.clientX; lastY = e.clientY;
+      render();
+    });
+    var stop = function () { dragging = false; };
+    viewerEl.addEventListener("pointerup", stop);
+    viewerEl.addEventListener("pointercancel", stop);
+    viewerEl.addEventListener("wheel", function (e) {
+      if (!mesh) return;
+      e.preventDefault();
+      dist = Math.max(radius * 1.2, Math.min(radius * 12, dist * (1 + e.deltaY * 0.001)));
+      render();
+    }, { passive: false });
+  }
+  function resize() {
+    if (!renderer) return;
+    var w = viewerEl.clientWidth, h = viewerEl.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    render();
+  }
+  function render() {
+    if (!renderer) return;
+    group.rotation.set(rot.x, rot.y, 0, "XYZ");
+    camera.position.set(0, 0, dist);
+    camera.lookAt(0, 0, 0);
+    renderer.render(scene, camera);
+  }
+  function showMesh(positions) {
+    if (!renderer) return;
+    if (mesh) { group.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); mesh = null; }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.rotateX(-Math.PI / 2);
+    geo.computeVertexNormals();
+    geo.center();
+    geo.computeBoundingSphere();
+    radius = geo.boundingSphere.radius || 50;
+    mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: colourHex(), roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide }));
+    group.add(mesh);
+    rot = { x: 0.45, y: 0.6 };
+    dist = radius / Math.sin(camera.fov * Math.PI / 360) * 1.15;
+    camera.near = Math.max(0.01, radius / 100);
+    camera.far = radius * 100;
+    camera.updateProjectionMatrix();
+    render();
+  }
+  function recolor() {
+    if (mesh) { mesh.material.color.set(colourHex()); render(); }
+  }
+
+  /* ---------- File handling ---------- */
+  var fileInput = $("fileInput");
+  function showError(msg) {
+    $("error").textContent = msg;
+    $("error").hidden = false;
+    $("empty").hidden = false;
+    $("infobar").hidden = true;
+    $("hint").hidden = true;
+    if (mesh) { group.remove(mesh); mesh = null; render(); }
+    model = null;
+    update();
+  }
+  function handleFile(file) {
+    if (!file) return;
+    $("error").hidden = true;
+    $("submitError").hidden = true;
+    if (!/\.stl$/i.test(file.name)) { showError("Please choose an .stl file. \u201C" + file.name + "\u201D is not one."); return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var positions;
+      try { positions = parseSTL(reader.result); } catch (err) { showError(err.message); return; }
+      if (positions.length < 9) { showError("The file contains no triangles. Check that it is an STL model."); return; }
+      var m = measure(positions);
+      if (!(m.volume > 0)) { showError("Couldn't calculate the volume: the model is flat or not closed."); return; }
+      var sizeMB = file.size / (1024 * 1024);
+      model = { volume: m.volume, area: m.area, size: m.size, name: file.name, tooBig: sizeMB > CONFIG.maxFileMB };
+      $("empty").hidden = true;
+      $("infobar").hidden = false;
+      $("fname").textContent = file.name;
+      $("dims").textContent = num1.format(m.size.x) + " × " + num1.format(m.size.y) + " × " + num1.format(m.size.z) + " mm";
+      $("fsize").textContent = num1.format(sizeMB) + " MB";
+      if (renderer) { $("hint").hidden = false; showMesh(positions); }
+      if (model.tooBig) {
+        $("submitError").textContent = "The file is " + num1.format(sizeMB) + " MB, but orders can include up to " + CONFIG.maxFileMB + " MB. Export it with fewer triangles or zip it and email it to me.";
+        $("submitError").hidden = false;
+      }
+      update();
+    };
+    reader.onerror = function () { showError("Couldn't read the file. Try choosing it again."); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  $("pickBtn").addEventListener("click", function () { fileInput.click(); });
+  $("replaceBtn").addEventListener("click", function () { fileInput.click(); });
+  fileInput.addEventListener("change", function () { handleFile(fileInput.files[0]); });
+
+  var stage = $("stage"), depth = 0;
+  stage.addEventListener("dragenter", function (e) { e.preventDefault(); depth++; stage.classList.add("dragging"); });
+  stage.addEventListener("dragover", function (e) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+  stage.addEventListener("dragleave", function () { depth = Math.max(0, depth - 1); if (!depth) stage.classList.remove("dragging"); });
+  stage.addEventListener("drop", function (e) {
+    e.preventDefault(); depth = 0; stage.classList.remove("dragging");
+    var files = e.dataTransfer.files;
+    if (!files || !files[0]) return;
+    try { fileInput.files = files; } catch (err) { /* older browsers */ }
+    handleFile(files[0]);
+  });
+  window.addEventListener("dragover", function (e) { e.preventDefault(); });
+  window.addEventListener("drop", function (e) { e.preventDefault(); });
+
+  $("qty").addEventListener("input", update);
+
+  $("orderForm").addEventListener("submit", function (e) {
+    var err = $("submitError");
+    if (!model || !fileInput.files || !fileInput.files[0]) {
+      e.preventDefault();
+      err.textContent = "Add your STL file first, using the Choose file button.";
+      err.hidden = false;
+      return;
+    }
+    if (model.tooBig) { e.preventDefault(); err.hidden = false; return; }
+    update();
+    $("submitBtn").disabled = true;
+    $("submitBtn").textContent = "Sending…";
+  });
+  window.addEventListener("pageshow", function () {
+    $("submitBtn").textContent = "Submit order";
+    refreshSubmit();
+  });
+
+  buildMaterials();
+  buildColours();
+  initViewer();
+  update();
+})();
+</script>
+</body>
+</html>
