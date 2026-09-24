@@ -527,13 +527,14 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     var printed = (shell + inner * CONFIG.infillPercent / 100) * (1 + CONFIG.wastePercent / 100);
     var gramsPer = printed / 1000 * m.density;
     var hoursPer = printed / m.flow / 3600 + WARMUP_HOURS;
+    var costPer = gramsPer / 1000 * m.pricePerKg
+                + CONFIG.printerPowerW / 1000 * hoursPer * CONFIG.electricityPerKWh
+                + hoursPer * CONFIG.printerWearPerHour;
+    var pricePer = Math.max(CONFIG.minOrder, costPer * (1 + CONFIG.markupPercent / 100));
+    pricePer = Math.ceil(pricePer * 2) / 2; // round up to 0.50, per piece — so the minimum order applies per piece, not once for the whole order
+    var total = pricePer * qty;
     var grams = gramsPer * qty, hours = hoursPer * qty;
-    var cost = grams / 1000 * m.pricePerKg
-             + CONFIG.printerPowerW / 1000 * hours * CONFIG.electricityPerKWh
-             + hours * CONFIG.printerWearPerHour;
-    var total = Math.max(CONFIG.minOrder, cost * (1 + CONFIG.markupPercent / 100));
-    total = Math.ceil(total * 2) / 2; // round up to 0.50
-    return { total: total, grams: grams, hours: hours, volume: V };
+    return { total: total, pricePer: pricePer, grams: grams, hours: hours, volume: V };
   }
 
   /* ---------- UI building ---------- */
