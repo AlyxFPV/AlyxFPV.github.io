@@ -336,11 +336,8 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     electricityPerKWh: 0.20,
     printerWearPerHour: 0.10,
     vatPercent: 24,          // Estonian standard VAT rate (24% since July 2025) — edit if it changes
-    bulkDiscount: [               // tiers checked highest first; the first one the quantity qualifies for wins
-      { minQty: 10, percent: 15 },
-      { minQty: 5, percent: 10 },
-      { minQty: 2, percent: 5 }
-    ],
+    bulkDiscount: { minQty: 2, percent: 10 },  // 2+ pcs of the same order => flat discount on the total
+    freeShippingMinQty: 10,                    // 10+ pcs of the same order => shipping is free
     shipping: {
       zones: {
         domestic: { label: "Estonia", price: 4.00 },
@@ -447,10 +444,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
   }
 
   function round2(x) { return Math.round(x * 100) / 100; }
-  function bulkDiscountFor(qty) {
-    for (var i = 0; i < CONFIG.bulkDiscount.length; i++) if (qty >= CONFIG.bulkDiscount[i].minQty) return CONFIG.bulkDiscount[i];
-    return null;
-  }
+
   function countryZone(name) {
     for (var i = 0; i < CONFIG.shipping.countries.length; i++) if (CONFIG.shipping.countries[i].name === name) return CONFIG.shipping.countries[i].zone;
     return "row";
@@ -602,8 +596,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       update();
     });
     $("vatLabel").textContent = "VAT (" + CONFIG.vatPercent + "%)";
-    var tiers = CONFIG.bulkDiscount.slice().reverse().map(function (t) { return t.minQty + "+ pcs −" + t.percent + "%"; }).join(" · ");
-    $("discountBanner").textContent = "Order more and save: " + tiers;
+    $("discountBanner").textContent = "Order more and save: " + CONFIG.bulkDiscount.minQty + "+ pcs −" + CONFIG.bulkDiscount.percent + "% · " + CONFIG.freeShippingMinQty + "+ pcs free shipping";
   }
 
   function buildColours() {
@@ -661,12 +654,12 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     }
 
     var q = quote(m, state.qty);
-    var shipTotal = round2(shipPrice * state.qty);
+    var freeShipping = state.qty >= CONFIG.freeShippingMinQty;
+    var shipTotal = freeShipping ? 0 : round2(shipPrice * state.qty);
     var vatAmount = round2((q.total + shipTotal) * CONFIG.vatPercent / 100);
     var rawTotal = round2(q.total + shipTotal + vatAmount);
-    var discountTier = bulkDiscountFor(state.qty);
-    var discountOn = !!discountTier;
-    var discountAmount = discountOn ? round2(rawTotal * discountTier.percent / 100) : 0;
+    var discountOn = state.qty >= CONFIG.bulkDiscount.minQty;
+    var discountAmount = discountOn ? round2(rawTotal * CONFIG.bulkDiscount.percent / 100) : 0;
     var grandTotal = round2(rawTotal - discountAmount);
     var dims = num1.format(model.size.x) + " × " + num1.format(model.size.y) + " × " + num1.format(model.size.z) + " mm";
     var weight = q.grams >= 1000 ? num1.format(q.grams / 1000) + " kg" : num1.format(q.grams) + " g";
@@ -676,11 +669,13 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       ? money.format(round2(grandTotal / state.qty)) + " per piece, " + state.qty + " pcs"
       : m.name + ", " + state.colour;
     $("rSubtotal").textContent = money.format(q.total);
-    $("rShipping").textContent = money.format(shipTotal) + " · " + state.country + (state.qty > 1 ? " (" + state.qty + "×)" : "");
+    $("rShipping").textContent = freeShipping
+      ? "Free · " + state.country + " (" + CONFIG.freeShippingMinQty + "+ pcs)"
+      : money.format(shipTotal) + " · " + state.country + (state.qty > 1 ? " (" + state.qty + "×)" : "");
     $("rVat").textContent = money.format(vatAmount);
     $("discountRow").hidden = !discountOn;
     if (discountOn) {
-      $("discountLabel").textContent = "Bulk discount (" + discountTier.minQty + "+ pcs, -" + discountTier.percent + "%)";
+      $("discountLabel").textContent = "Bulk discount (" + CONFIG.bulkDiscount.minQty + "+ pcs, -" + CONFIG.bulkDiscount.percent + "%)";
       $("rDiscount").textContent = "−" + money.format(discountAmount);
     }
     $("rDims").textContent = dims;
@@ -689,9 +684,9 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 
     $("fPrice").value = money.format(grandTotal);
     $("fPricePiece").value = money.format(round2(grandTotal / state.qty));
-    $("fShipping").value = money.format(shipTotal) + " (" + state.country + ")";
+    $("fShipping").value = freeShipping ? ("Free (" + CONFIG.freeShippingMinQty + "+ pcs)") : (money.format(shipTotal) + " (" + state.country + ")");
     $("fVat").value = money.format(vatAmount) + " (" + CONFIG.vatPercent + "%)";
-    $("fDiscount").value = discountOn ? ("-" + discountTier.percent + "% (" + discountTier.minQty + "+ pcs) = -" + money.format(discountAmount)) : "";
+    $("fDiscount").value = discountOn ? ("-" + CONFIG.bulkDiscount.percent + "% (" + CONFIG.bulkDiscount.minQty + "+ pcs) = -" + money.format(discountAmount)) : "";
     $("fDims").value = dims;
     $("fVolume").value = num1.format(q.volume / 1000) + " cm³";
     $("fWeight").value = weight;
