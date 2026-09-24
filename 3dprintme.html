@@ -160,8 +160,8 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 .field select { cursor: pointer; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 420px) { .two { grid-template-columns: 1fr; } }
-.phone-row { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
-@media (max-width: 420px) { .phone-row { grid-template-columns: 84px 1fr; } }
+.phone-row { display: grid; grid-template-columns: 118px 1fr; gap: 8px; }
+@media (max-width: 420px) { .phone-row { grid-template-columns: 104px 1fr; } }
 .honey { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 .total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -300,7 +300,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
               <label for="phoneNumber">Phone number</label>
               <div class="phone-row">
                 <select id="phoneCode" name="Phone code" aria-label="Country code" required></select>
-                <input type="tel" id="phoneNumber" name="Phone number" required autocomplete="tel-national" placeholder="5xxxxxxx">
+                <input type="tel" id="phoneNumber" name="Phone number" required autocomplete="tel-national">
               </div>
             </div>
             <div class="field">
