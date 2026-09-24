@@ -339,15 +339,19 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     bulkDiscount: { minQty: 2, percent: 10 },  // 2+ pcs of the same order => flat discount on the total
     freeShippingMinQty: 10,                    // 10+ pcs of the same order => shipping is free
     shipping: {
+      // domestic + baltic prices are Omniva parcel-machine rates (M size), from Omniva's
+      // official private-customer price list effective 01.05.2026 — eu/row are DHL Express
+      // placeholders (DHL is quote-based by weight+destination) — edit once you know the real cost
       zones: {
-        domestic: { label: "Estonia", price: 4.00 },
-        eu: { label: "EU", price: 9.00 },
-        row: { label: "Rest of world", price: 19.00 }
+        domestic: { label: "Estonia", price: 4.48 },
+        baltic: { label: "Latvia / Lithuania", price: 9.00 },
+        eu: { label: "EU (DHL Express)", price: 15.00 },
+        row: { label: "Rest of world (DHL Express)", price: 29.00 }
       },
       countries: [
         { name: "Estonia", zone: "domestic" },
-        { name: "Latvia", zone: "eu" },
-        { name: "Lithuania", zone: "eu" },
+        { name: "Latvia", zone: "baltic" },
+        { name: "Lithuania", zone: "baltic" },
         { name: "Finland", zone: "eu" },
         { name: "Sweden", zone: "eu" },
         { name: "Germany", zone: "eu" },
