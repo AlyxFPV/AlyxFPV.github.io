@@ -66,9 +66,11 @@ body {
 .head { max-width: 660px; margin-bottom: 24px; }
 .head h1 { margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.03em; }
 .head p { margin: 0; color: var(--muted); font-size: 1.05rem; }
-.head-row { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+.head-row-left { display: flex; align-items: center; gap: 14px; }
 .head-logo { width: 52px; height: 52px; border-radius: 14px; display: block; flex: none; }
 .head-row h1 { margin: 0; }
+.btn.home svg { width: 16px; height: 16px; }
 
 .banner {
   display: none; margin-bottom: 20px; padding: 14px 18px; border-radius: 14px;
@@ -108,6 +110,7 @@ body {
 .infobar .spacer { flex: 1; }
 
 .btn {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
   font: inherit; font-weight: 700; font-size: 1rem; border: 0; border-radius: 999px; padding: 11px 22px;
   cursor: pointer; background: var(--accent); color: var(--accent-ink);
 }
@@ -144,6 +147,9 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 }
 .swatch i { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(128,128,128,.5); display: block; }
 .swatch input:checked + span { border-color: var(--accent); background: var(--surface); }
+.choice.unavailable .choice-name, .choice.unavailable .choice-price { text-decoration: line-through; opacity: .55; }
+.choice.unavailable .choice-desc { opacity: .55; }
+.swatch.unavailable span { opacity: .5; text-decoration: line-through; }
 
 .fields { display: grid; gap: 14px; }
 .field label { display: block; font-size: 0.92rem; font-weight: 500; margin-bottom: 6px; }
@@ -176,8 +182,14 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 <main class="wrap">
   <header class="head">
     <div class="head-row">
-      <img class="head-logo" src="3dprintme-logo.webp" alt="3D Print Me! logo">
-      <h1>3D Print Me!</h1>
+      <div class="head-row-left">
+        <img class="head-logo" src="3dprintme-logo.webp" alt="3D Print Me! logo">
+        <h1>3D Print Me!</h1>
+      </div>
+      <a class="btn ghost home" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9a1 1 0 0 0 1 1h4.5v-6h2v6H17.5a1 1 0 0 0 1-1v-9"/></svg>
+        Home
+      </a>
     </div>
     <p>Upload an STL file, pick a filament and colour, and see the price right away. Send the order and I will reply by email to confirm the details.</p>
   </header>
@@ -226,6 +238,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
           <fieldset>
             <legend>Filament</legend>
             <div class="choices" id="materialList"></div>
+            <p class="error" id="materialNote" hidden></p>
           </fieldset>
         </div>
 
@@ -233,6 +246,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
           <fieldset>
             <legend id="colourLegend">Colour</legend>
             <div class="swatches" id="colourList"></div>
+            <p class="error" id="colourNote" hidden></p>
           </fieldset>
         </div>
 
@@ -306,32 +320,43 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       {
         id: "pla", name: "PLA", density: 1.24, pricePerKg: 20, flow: 8.0,
         desc: "Stiff and precise. Best for indoor parts and prototypes.",
+        stock: false,
         colours: [
-          { name: "Black", hex: "#1E1F22" },
-          { name: "White", hex: "#F2F2EE" },
-          { name: "Grey", hex: "#8A9097" },
-          { name: "Red", hex: "#C8272D" },
-          { name: "Blue", hex: "#2156B8" },
-          { name: "Orange", hex: "#F07A1A" }
+          { name: "Black", hex: "#1E1F22", stock: false },
+          { name: "White", hex: "#F2F2EE", stock: false },
+          { name: "Green", hex: "#2E9E52", stock: false },
+          { name: "Red", hex: "#C8272D", stock: false },
+          { name: "Blue", hex: "#2156B8", stock: false },
+          { name: "Grey", hex: "#8A9097", stock: false },
+          { name: "Orange", hex: "#F07A1A", stock: false }
         ]
       },
       {
         id: "petg", name: "PETG", density: 1.27, pricePerKg: 23, flow: 6.0,
         desc: "Tough and heat resistant. Good for outdoor and moto parts.",
+        stock: true,
         colours: [
-          { name: "Black", hex: "#1E1F22" },
-          { name: "White", hex: "#F2F2EE" },
-          { name: "Grey", hex: "#8A9097" },
-          { name: "Clear", hex: "#CFE3EA" }
+          { name: "Black", hex: "#1E1F22", stock: true },
+          { name: "White", hex: "#F2F2EE", stock: false },
+          { name: "Green", hex: "#2E9E52", stock: false },
+          { name: "Red", hex: "#C8272D", stock: false },
+          { name: "Blue", hex: "#2156B8", stock: false },
+          { name: "Grey", hex: "#8A9097", stock: false },
+          { name: "Orange", hex: "#F07A1A", stock: false }
         ]
       },
       {
         id: "tpu", name: "TPU 95A", density: 1.21, pricePerKg: 30, flow: 2.5,
         desc: "Flexible and shock absorbing. For guards, bumpers, mounts.",
+        stock: true,
         colours: [
-          { name: "Black", hex: "#1E1F22" },
-          { name: "White", hex: "#F2F2EE" },
-          { name: "Red", hex: "#C8272D" }
+          { name: "Black", hex: "#1E1F22", stock: true },
+          { name: "White", hex: "#F2F2EE", stock: false },
+          { name: "Green", hex: "#2E9E52", stock: false },
+          { name: "Red", hex: "#C8272D", stock: false },
+          { name: "Blue", hex: "#2156B8", stock: false },
+          { name: "Grey", hex: "#8A9097", stock: false },
+          { name: "Orange", hex: "#F07A1A", stock: false }
         ]
       }
     ]
@@ -345,7 +370,17 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
   var money = new Intl.NumberFormat(CONFIG.locale, { style: "currency", currency: CONFIG.currency });
   var num1 = new Intl.NumberFormat(CONFIG.locale, { maximumFractionDigits: 1 });
 
-  var state = { material: CONFIG.materials[0].id, colour: CONFIG.materials[0].colours[0].name, qty: 1 };
+  function firstInStockMaterial() {
+    for (var i = 0; i < CONFIG.materials.length; i++) if (CONFIG.materials[i].stock) return CONFIG.materials[i];
+    return CONFIG.materials[0];
+  }
+  function firstInStockColour(m) {
+    for (var i = 0; i < m.colours.length; i++) if (m.colours[i].stock) return m.colours[i];
+    return m.colours[0];
+  }
+
+  var defaultMaterial = firstInStockMaterial();
+  var state = { material: defaultMaterial.id, colour: firstInStockColour(defaultMaterial).name, qty: 1 };
   var model = null;
 
   function mat() {
@@ -439,26 +474,37 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
   }
 
   /* ---------- UI building ---------- */
+  function showNote(id, msg) { var el = $(id); el.textContent = msg; el.hidden = false; }
+  function hideNote(id) { $(id).hidden = true; }
+
   function buildMaterials() {
     var list = $("materialList");
     list.innerHTML = "";
     CONFIG.materials.forEach(function (m) {
       var label = document.createElement("label");
-      label.className = "choice";
+      label.className = "choice" + (m.stock ? "" : " unavailable");
       var input = document.createElement("input");
       input.type = "radio"; input.name = "materialChoice"; input.value = m.id;
       input.checked = m.id === state.material;
       input.addEventListener("change", function () {
         if (!input.checked) return;
+        if (!m.stock) {
+          input.checked = false;
+          var current = list.querySelector('input[value="' + state.material + '"]');
+          if (current) current.checked = true;
+          showNote("materialNote", m.name + " is out of stock right now — pick an available filament.");
+          return;
+        }
+        hideNote("materialNote");
         state.material = m.id;
-        state.colour = m.colours[0].name;
+        state.colour = firstInStockColour(m).name;
         buildColours();
         update();
       });
       var body = document.createElement("span");
       body.className = "choice-body";
       var nm = document.createElement("span"); nm.className = "choice-name"; nm.textContent = m.name;
-      var pr = document.createElement("span"); pr.className = "choice-price"; pr.id = "price-" + m.id; pr.textContent = "–";
+      var pr = document.createElement("span"); pr.className = "choice-price"; pr.id = "price-" + m.id; pr.textContent = m.stock ? "–" : "Out of stock";
       var ds = document.createElement("span"); ds.className = "choice-desc"; ds.textContent = m.desc;
       body.appendChild(nm); body.appendChild(pr); body.appendChild(ds);
       label.appendChild(input); label.appendChild(body);
@@ -469,15 +515,24 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     var m = mat();
     var list = $("colourList");
     list.innerHTML = "";
+    hideNote("colourNote");
     $("colourLegend").textContent = "Colour (" + m.name + ")";
     m.colours.forEach(function (c) {
       var label = document.createElement("label");
-      label.className = "swatch";
+      label.className = "swatch" + (c.stock ? "" : " unavailable");
       var input = document.createElement("input");
       input.type = "radio"; input.name = "colourChoice"; input.value = c.name;
       input.checked = c.name === state.colour;
       input.addEventListener("change", function () {
         if (!input.checked) return;
+        if (!c.stock) {
+          input.checked = false;
+          var current = list.querySelector('input[value="' + state.colour + '"]');
+          if (current) current.checked = true;
+          showNote("colourNote", c.name + " is out of stock right now — pick an available colour.");
+          return;
+        }
+        hideNote("colourNote");
         state.colour = c.name;
         update();
       });
@@ -499,7 +554,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     recolor();
 
     if (!model) {
-      CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = "–"; });
+      CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = x.stock ? "–" : "Out of stock"; });
       $("total").textContent = "–";
       $("perPiece").textContent = "Upload a model to see the price";
       $("rDims").textContent = "–"; $("rWeight").textContent = "–"; $("rTime").textContent = "–";
@@ -507,7 +562,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       return;
     }
 
-    CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = money.format(quote(x, state.qty).total); });
+    CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = x.stock ? money.format(quote(x, state.qty).total) : "Out of stock"; });
     var q = quote(m, state.qty);
     var dims = num1.format(model.size.x) + " × " + num1.format(model.size.y) + " × " + num1.format(model.size.z) + " mm";
     var weight = q.grams >= 1000 ? num1.format(q.grams / 1000) + " kg" : num1.format(q.grams) + " g";
