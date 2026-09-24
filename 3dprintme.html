@@ -374,39 +374,39 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
         ] }
       },
       countries: [
-        { name: "Estonia", zone: "domestic", dial: "+372" },
-        { name: "Latvia", zone: "baltic", dial: "+371" },
-        { name: "Lithuania", zone: "baltic", dial: "+370" },
-        { name: "Finland", zone: "eu", dial: "+358" },
-        { name: "Sweden", zone: "eu", dial: "+46" },
-        { name: "Germany", zone: "eu", dial: "+49" },
-        { name: "Poland", zone: "eu", dial: "+48" },
-        { name: "Netherlands", zone: "eu", dial: "+31" },
-        { name: "Belgium", zone: "eu", dial: "+32" },
-        { name: "France", zone: "eu", dial: "+33" },
-        { name: "Italy", zone: "eu", dial: "+39" },
-        { name: "Spain", zone: "eu", dial: "+34" },
-        { name: "Austria", zone: "eu", dial: "+43" },
-        { name: "Denmark", zone: "eu", dial: "+45" },
-        { name: "Ireland", zone: "eu", dial: "+353" },
-        { name: "Portugal", zone: "eu", dial: "+351" },
-        { name: "Czechia", zone: "eu", dial: "+420" },
-        { name: "Slovakia", zone: "eu", dial: "+421" },
-        { name: "Hungary", zone: "eu", dial: "+36" },
-        { name: "Romania", zone: "eu", dial: "+40" },
-        { name: "Bulgaria", zone: "eu", dial: "+359" },
-        { name: "Greece", zone: "eu", dial: "+30" },
-        { name: "Croatia", zone: "eu", dial: "+385" },
-        { name: "Slovenia", zone: "eu", dial: "+386" },
-        { name: "Luxembourg", zone: "eu", dial: "+352" },
-        { name: "Malta", zone: "eu", dial: "+356" },
-        { name: "Cyprus", zone: "eu", dial: "+357" },
-        { name: "United Kingdom", zone: "row", dial: "+44" },
-        { name: "Norway", zone: "row", dial: "+47" },
-        { name: "Switzerland", zone: "row", dial: "+41" },
-        { name: "United States", zone: "row", dial: "+1" },
-        { name: "Canada", zone: "row", dial: "+1" },
-        { name: "Other", zone: "row", dial: "" }
+        { name: "Estonia", zone: "domestic", dial: "+372", flag: "🇪🇪" },
+        { name: "Latvia", zone: "baltic", dial: "+371", flag: "🇱🇻" },
+        { name: "Lithuania", zone: "baltic", dial: "+370", flag: "🇱🇹" },
+        { name: "Finland", zone: "eu", dial: "+358", flag: "🇫🇮" },
+        { name: "Sweden", zone: "eu", dial: "+46", flag: "🇸🇪" },
+        { name: "Germany", zone: "eu", dial: "+49", flag: "🇩🇪" },
+        { name: "Poland", zone: "eu", dial: "+48", flag: "🇵🇱" },
+        { name: "Netherlands", zone: "eu", dial: "+31", flag: "🇳🇱" },
+        { name: "Belgium", zone: "eu", dial: "+32", flag: "🇧🇪" },
+        { name: "France", zone: "eu", dial: "+33", flag: "🇫🇷" },
+        { name: "Italy", zone: "eu", dial: "+39", flag: "🇮🇹" },
+        { name: "Spain", zone: "eu", dial: "+34", flag: "🇪🇸" },
+        { name: "Austria", zone: "eu", dial: "+43", flag: "🇦🇹" },
+        { name: "Denmark", zone: "eu", dial: "+45", flag: "🇩🇰" },
+        { name: "Ireland", zone: "eu", dial: "+353", flag: "🇮🇪" },
+        { name: "Portugal", zone: "eu", dial: "+351", flag: "🇵🇹" },
+        { name: "Czechia", zone: "eu", dial: "+420", flag: "🇨🇿" },
+        { name: "Slovakia", zone: "eu", dial: "+421", flag: "🇸🇰" },
+        { name: "Hungary", zone: "eu", dial: "+36", flag: "🇭🇺" },
+        { name: "Romania", zone: "eu", dial: "+40", flag: "🇷🇴" },
+        { name: "Bulgaria", zone: "eu", dial: "+359", flag: "🇧🇬" },
+        { name: "Greece", zone: "eu", dial: "+30", flag: "🇬🇷" },
+        { name: "Croatia", zone: "eu", dial: "+385", flag: "🇭🇷" },
+        { name: "Slovenia", zone: "eu", dial: "+386", flag: "🇸🇮" },
+        { name: "Luxembourg", zone: "eu", dial: "+352", flag: "🇱🇺" },
+        { name: "Malta", zone: "eu", dial: "+356", flag: "🇲🇹" },
+        { name: "Cyprus", zone: "eu", dial: "+357", flag: "🇨🇾" },
+        { name: "United Kingdom", zone: "row", dial: "+44", flag: "🇬🇧" },
+        { name: "Norway", zone: "row", dial: "+47", flag: "🇳🇴" },
+        { name: "Switzerland", zone: "row", dial: "+41", flag: "🇨🇭" },
+        { name: "United States", zone: "row", dial: "+1", flag: "🇺🇸" },
+        { name: "Canada", zone: "row", dial: "+1", flag: "🇨🇦" },
+        { name: "Other", zone: "row", dial: "", flag: "🏳️" }
       ]
     },
     materials: [
@@ -616,35 +616,31 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       list.appendChild(label);
     });
   }
-  function dialFor(name) {
-    for (var i = 0; i < CONFIG.shipping.countries.length; i++) if (CONFIG.shipping.countries[i].name === name) return CONFIG.shipping.countries[i].dial;
-    return "";
-  }
-
   function buildCountries() {
     var sel = $("country");
     var codeSel = $("phoneCode");
     sel.innerHTML = "";
     codeSel.innerHTML = "";
-    var lastDial = "";
     CONFIG.shipping.countries.forEach(function (c) {
       var opt = document.createElement("option");
       opt.value = c.name; opt.textContent = c.name;
       if (c.name === state.country) opt.selected = true;
       sel.appendChild(opt);
 
-      if (c.dial && c.dial !== lastDial) {
+      if (c.dial) {
         var copt = document.createElement("option");
-        copt.value = c.dial; copt.textContent = c.dial;
-        if (c.dial === dialFor(state.country)) copt.selected = true;
+        copt.value = c.dial; copt.textContent = (c.flag ? c.flag + " " : "") + c.dial;
+        copt.setAttribute("data-country", c.name);
+        if (c.name === state.country) copt.selected = true;
         codeSel.appendChild(copt);
-        lastDial = c.dial;
       }
     });
     sel.addEventListener("change", function () {
       state.country = sel.value;
-      var newDial = dialFor(sel.value);
-      if (newDial) codeSel.value = newDial;
+      var opts = codeSel.options;
+      for (var i = 0; i < opts.length; i++) {
+        if (opts[i].getAttribute("data-country") === sel.value) { codeSel.selectedIndex = i; break; }
+      }
       update();
     });
     $("vatLabel").textContent = "VAT (" + CONFIG.vatPercent + "%)";
