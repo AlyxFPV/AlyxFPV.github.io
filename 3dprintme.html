@@ -337,7 +337,6 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     printerWearPerHour: 0.10,
     vatPercent: 24,          // Estonian standard VAT rate (24% since July 2025) — edit if it changes
     bulkDiscount: { minQty: 2, percent: 10 },  // 2+ pcs of the same order => flat discount on the total
-    freeShippingMinQty: 10,                    // 10+ pcs of the same order => shipping is free
     shipping: {
       // priced by total order weight, not by piece count — 9 small parts ship in one parcel,
       // not 9 separate ones. domestic + baltic tiers are Omniva parcel-machine rates (S/M/L),
@@ -622,7 +621,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       update();
     });
     $("vatLabel").textContent = "VAT (" + CONFIG.vatPercent + "%)";
-    $("discountBanner").textContent = "Order more and save: " + CONFIG.bulkDiscount.minQty + "+ pcs −" + CONFIG.bulkDiscount.percent + "% · " + CONFIG.freeShippingMinQty + "+ pcs free shipping";
+    $("discountBanner").textContent = "Order more than one and get " + CONFIG.bulkDiscount.percent + "% discount";
   }
 
   function buildColours() {
@@ -679,8 +678,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     }
 
     var q = quote(m, state.qty);
-    var freeShipping = state.qty >= CONFIG.freeShippingMinQty;
-    var shipTotal = freeShipping ? 0 : shipPriceFor(zone, q.grams);
+    var shipTotal = shipPriceFor(zone, q.grams);
     var vatAmount = round2((q.total + shipTotal) * CONFIG.vatPercent / 100);
     var rawTotal = round2(q.total + shipTotal + vatAmount);
     var discountOn = state.qty >= CONFIG.bulkDiscount.minQty;
@@ -694,13 +692,11 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       ? money.format(round2(grandTotal / state.qty)) + " per piece, " + state.qty + " pcs"
       : m.name + ", " + state.colour;
     $("rSubtotal").textContent = money.format(q.total);
-    $("rShipping").textContent = freeShipping
-      ? "Free · " + state.country + " (" + CONFIG.freeShippingMinQty + "+ pcs)"
-      : money.format(shipTotal) + " · " + state.country + " (" + weight + " total)";
+    $("rShipping").textContent = money.format(shipTotal) + " · " + state.country + " (" + weight + " total)";
     $("rVat").textContent = money.format(vatAmount);
     $("discountRow").hidden = !discountOn;
     if (discountOn) {
-      $("discountLabel").textContent = "Bulk discount (" + CONFIG.bulkDiscount.minQty + "+ pcs, -" + CONFIG.bulkDiscount.percent + "%)";
+      $("discountLabel").textContent = "Discount (-" + CONFIG.bulkDiscount.percent + "%)";
       $("rDiscount").textContent = "−" + money.format(discountAmount);
     }
     $("rDims").textContent = dims;
@@ -709,9 +705,9 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 
     $("fPrice").value = money.format(grandTotal);
     $("fPricePiece").value = money.format(round2(grandTotal / state.qty));
-    $("fShipping").value = freeShipping ? ("Free (" + CONFIG.freeShippingMinQty + "+ pcs)") : (money.format(shipTotal) + " (" + state.country + ", " + weight + ")");
+    $("fShipping").value = money.format(shipTotal) + " (" + state.country + ", " + weight + ")";
     $("fVat").value = money.format(vatAmount) + " (" + CONFIG.vatPercent + "%)";
-    $("fDiscount").value = discountOn ? ("-" + CONFIG.bulkDiscount.percent + "% (" + CONFIG.bulkDiscount.minQty + "+ pcs) = -" + money.format(discountAmount)) : "";
+    $("fDiscount").value = discountOn ? ("-" + CONFIG.bulkDiscount.percent + "% discount = -" + money.format(discountAmount)) : "";
     $("fDims").value = dims;
     $("fVolume").value = num1.format(q.volume / 1000) + " cm³";
     $("fWeight").value = weight;
