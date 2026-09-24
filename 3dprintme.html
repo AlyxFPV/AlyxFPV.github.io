@@ -153,11 +153,12 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 
 .fields { display: grid; gap: 14px; }
 .field label { display: block; font-size: 0.92rem; font-weight: 500; margin-bottom: 6px; }
-.field input, .field textarea {
+.field input, .field textarea, .field select {
   width: 100%; font: inherit; color: var(--ink); background: var(--field);
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
 }
 .field textarea { min-height: 88px; resize: vertical; }
+.field select { cursor: pointer; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 420px) { .two { grid-template-columns: 1fr; } }
 .honey { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
@@ -205,6 +206,8 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     <input type="hidden" name="Colour" id="fColour" value="">
     <input type="hidden" name="Estimated price" id="fPrice" value="">
     <input type="hidden" name="Price per piece" id="fPricePiece" value="">
+    <input type="hidden" name="Shipping" id="fShipping" value="">
+    <input type="hidden" name="VAT" id="fVat" value="">
     <input type="hidden" name="Model file" id="fFile" value="">
     <input type="hidden" name="Dimensions" id="fDims" value="">
     <input type="hidden" name="Model volume" id="fVolume" value="">
@@ -259,6 +262,9 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
             </div>
           </div>
           <ul class="rows">
+            <li><span>Print cost</span><span id="rSubtotal">–</span></li>
+            <li><span>Shipping</span><span id="rShipping">–</span></li>
+            <li><span id="vatLabel">VAT</span><span id="rVat">–</span></li>
             <li><span>Size</span><span id="rDims">–</span></li>
             <li><span>Filament used</span><span id="rWeight">–</span></li>
             <li><span>Print time</span><span id="rTime">–</span></li>
@@ -282,6 +288,14 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
             <div class="field">
               <label for="email">Email</label>
               <input type="email" id="email" name="email" required autocomplete="email">
+            </div>
+            <div class="field">
+              <label for="country">Country</label>
+              <select id="country" name="Country" required autocomplete="country-name"></select>
+            </div>
+            <div class="field">
+              <label for="address">Shipping address</label>
+              <textarea id="address" name="Address" required autocomplete="street-address" placeholder="Street and number, city, postal code"></textarea>
             </div>
             <div class="field">
               <label for="comment">Comment (optional)</label>
@@ -316,6 +330,49 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     printerPowerW: 150,
     electricityPerKWh: 0.20,
     printerWearPerHour: 0.10,
+    vatPercent: 22,          // Estonian standard VAT rate — edit if it changes
+    shipping: {
+      zones: {
+        domestic: { label: "Estonia", price: 4.00 },
+        eu: { label: "EU", price: 9.00 },
+        row: { label: "Rest of world", price: 19.00 }
+      },
+      countries: [
+        { name: "Estonia", zone: "domestic" },
+        { name: "Latvia", zone: "eu" },
+        { name: "Lithuania", zone: "eu" },
+        { name: "Finland", zone: "eu" },
+        { name: "Sweden", zone: "eu" },
+        { name: "Germany", zone: "eu" },
+        { name: "Poland", zone: "eu" },
+        { name: "Netherlands", zone: "eu" },
+        { name: "Belgium", zone: "eu" },
+        { name: "France", zone: "eu" },
+        { name: "Italy", zone: "eu" },
+        { name: "Spain", zone: "eu" },
+        { name: "Austria", zone: "eu" },
+        { name: "Denmark", zone: "eu" },
+        { name: "Ireland", zone: "eu" },
+        { name: "Portugal", zone: "eu" },
+        { name: "Czechia", zone: "eu" },
+        { name: "Slovakia", zone: "eu" },
+        { name: "Hungary", zone: "eu" },
+        { name: "Romania", zone: "eu" },
+        { name: "Bulgaria", zone: "eu" },
+        { name: "Greece", zone: "eu" },
+        { name: "Croatia", zone: "eu" },
+        { name: "Slovenia", zone: "eu" },
+        { name: "Luxembourg", zone: "eu" },
+        { name: "Malta", zone: "eu" },
+        { name: "Cyprus", zone: "eu" },
+        { name: "United Kingdom", zone: "row" },
+        { name: "Norway", zone: "row" },
+        { name: "Switzerland", zone: "row" },
+        { name: "United States", zone: "row" },
+        { name: "Canada", zone: "row" },
+        { name: "Other", zone: "row" }
+      ]
+    },
     materials: [
       {
         id: "pla", name: "PLA", density: 1.24, pricePerKg: 20, flow: 8.0,
@@ -379,8 +436,14 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     return m.colours[0];
   }
 
+  function round2(x) { return Math.round(x * 100) / 100; }
+  function countryZone(name) {
+    for (var i = 0; i < CONFIG.shipping.countries.length; i++) if (CONFIG.shipping.countries[i].name === name) return CONFIG.shipping.countries[i].zone;
+    return "row";
+  }
+
   var defaultMaterial = firstInStockMaterial();
-  var state = { material: defaultMaterial.id, colour: firstInStockColour(defaultMaterial).name, qty: 1 };
+  var state = { material: defaultMaterial.id, colour: firstInStockColour(defaultMaterial).name, qty: 1, country: CONFIG.shipping.countries[0].name };
   var model = null;
 
   function mat() {
@@ -511,6 +574,22 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       list.appendChild(label);
     });
   }
+  function buildCountries() {
+    var sel = $("country");
+    sel.innerHTML = "";
+    CONFIG.shipping.countries.forEach(function (c) {
+      var opt = document.createElement("option");
+      opt.value = c.name; opt.textContent = c.name;
+      if (c.name === state.country) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", function () {
+      state.country = sel.value;
+      update();
+    });
+    $("vatLabel").textContent = "VAT (" + CONFIG.vatPercent + "%)";
+  }
+
   function buildColours() {
     var m = mat();
     var list = $("colourList");
@@ -553,10 +632,14 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     $("fColour").value = state.colour;
     recolor();
 
+    var zone = countryZone(state.country);
+    var shipPrice = CONFIG.shipping.zones[zone].price;
+
     if (!model) {
       CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = x.stock ? "–" : "Out of stock"; });
       $("total").textContent = "–";
       $("perPiece").textContent = "Upload a model to see the price";
+      $("rSubtotal").textContent = "–"; $("rShipping").textContent = "–"; $("rVat").textContent = "–";
       $("rDims").textContent = "–"; $("rWeight").textContent = "–"; $("rTime").textContent = "–";
       refreshSubmit();
       return;
@@ -564,25 +647,32 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 
     CONFIG.materials.forEach(function (x) { $("price-" + x.id).textContent = x.stock ? money.format(quote(x, state.qty).total) : "Out of stock"; });
     var q = quote(m, state.qty);
+    var vatAmount = round2((q.total + shipPrice) * CONFIG.vatPercent / 100);
+    var grandTotal = round2(q.total + shipPrice + vatAmount);
     var dims = num1.format(model.size.x) + " × " + num1.format(model.size.y) + " × " + num1.format(model.size.z) + " mm";
     var weight = q.grams >= 1000 ? num1.format(q.grams / 1000) + " kg" : num1.format(q.grams) + " g";
 
-    $("total").textContent = money.format(q.total);
+    $("total").textContent = money.format(grandTotal);
     $("perPiece").textContent = state.qty > 1
-      ? money.format(q.total / state.qty) + " per piece, " + state.qty + " pcs"
+      ? money.format(round2(grandTotal / state.qty)) + " per piece, " + state.qty + " pcs"
       : m.name + ", " + state.colour;
+    $("rSubtotal").textContent = money.format(q.total);
+    $("rShipping").textContent = money.format(shipPrice) + " · " + state.country;
+    $("rVat").textContent = money.format(vatAmount);
     $("rDims").textContent = dims;
     $("rWeight").textContent = weight;
     $("rTime").textContent = formatTime(q.hours);
 
-    $("fPrice").value = money.format(q.total);
-    $("fPricePiece").value = money.format(q.total / state.qty);
+    $("fPrice").value = money.format(grandTotal);
+    $("fPricePiece").value = money.format(round2(grandTotal / state.qty));
+    $("fShipping").value = money.format(shipPrice) + " (" + state.country + ")";
+    $("fVat").value = money.format(vatAmount) + " (" + CONFIG.vatPercent + "%)";
     $("fDims").value = dims;
     $("fVolume").value = num1.format(q.volume / 1000) + " cm³";
     $("fWeight").value = weight;
     $("fTime").value = formatTime(q.hours);
     $("fFile").value = model.name;
-    $("fSubject").value = "3D Print Me! order: " + model.name + ", " + m.name + " " + state.colour + ", " + money.format(q.total);
+    $("fSubject").value = "3D Print Me! order: " + model.name + ", " + m.name + " " + state.colour + ", " + money.format(grandTotal);
     refreshSubmit();
   }
 
@@ -758,6 +848,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 
   buildMaterials();
   buildColours();
+  buildCountries();
   initViewer();
   update();
 })();
