@@ -339,14 +339,31 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     bulkDiscount: { minQty: 2, percent: 10 },  // 2+ pcs of the same order => flat discount on the total
     freeShippingMinQty: 10,                    // 10+ pcs of the same order => shipping is free
     shipping: {
-      // domestic + baltic prices are Omniva parcel-machine rates (M size), from Omniva's
-      // official private-customer price list effective 01.05.2026 — eu/row are DHL Express
-      // placeholders (DHL is quote-based by weight+destination) — edit once you know the real cost
+      // priced by total order weight, not by piece count — 9 small parts ship in one parcel,
+      // not 9 separate ones. domestic + baltic tiers are Omniva parcel-machine rates (S/M/L),
+      // from Omniva's official private-customer price list effective 01.05.2026 — eu/row are
+      // DHL Express placeholders (DHL is quote-based by weight+destination) — edit once known
       zones: {
-        domestic: { label: "Estonia", price: 4.48 },
-        baltic: { label: "Latvia / Lithuania", price: 9.00 },
-        eu: { label: "EU (DHL Express)", price: 15.00 },
-        row: { label: "Rest of world (DHL Express)", price: 29.00 }
+        domestic: { label: "Estonia", tiers: [
+          { maxGrams: 2000, price: 3.46 },
+          { maxGrams: 7000, price: 4.48 },
+          { maxGrams: 15000, price: 5.49 }
+        ] },
+        baltic: { label: "Latvia / Lithuania", tiers: [
+          { maxGrams: 2000, price: 7.67 },
+          { maxGrams: 7000, price: 8.83 },
+          { maxGrams: 15000, price: 10.41 }
+        ] },
+        eu: { label: "EU (DHL Express)", tiers: [
+          { maxGrams: 1000, price: 12.00 },
+          { maxGrams: 5000, price: 18.00 },
+          { maxGrams: 15000, price: 28.00 }
+        ] },
+        row: { label: "Rest of world (DHL Express)", tiers: [
+          { maxGrams: 1000, price: 22.00 },
+          { maxGrams: 5000, price: 32.00 },
+          { maxGrams: 15000, price: 48.00 }
+        ] }
       },
       countries: [
         { name: "Estonia", zone: "domestic" },
@@ -452,6 +469,11 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
   function countryZone(name) {
     for (var i = 0; i < CONFIG.shipping.countries.length; i++) if (CONFIG.shipping.countries[i].name === name) return CONFIG.shipping.countries[i].zone;
     return "row";
+  }
+  function shipPriceFor(zone, grams) {
+    var tiers = CONFIG.shipping.zones[zone].tiers;
+    for (var i = 0; i < tiers.length; i++) if (grams <= tiers[i].maxGrams) return tiers[i].price;
+    return tiers[tiers.length - 1].price; // heaviest tier still applies beyond the top bracket
   }
 
   var defaultMaterial = firstInStockMaterial();
@@ -646,7 +668,6 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     recolor();
 
     var zone = countryZone(state.country);
-    var shipPrice = CONFIG.shipping.zones[zone].price;
 
     if (!model) {
       $("total").textContent = "–";
@@ -659,7 +680,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 
     var q = quote(m, state.qty);
     var freeShipping = state.qty >= CONFIG.freeShippingMinQty;
-    var shipTotal = freeShipping ? 0 : round2(shipPrice * state.qty);
+    var shipTotal = freeShipping ? 0 : shipPriceFor(zone, q.grams);
     var vatAmount = round2((q.total + shipTotal) * CONFIG.vatPercent / 100);
     var rawTotal = round2(q.total + shipTotal + vatAmount);
     var discountOn = state.qty >= CONFIG.bulkDiscount.minQty;
@@ -675,7 +696,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     $("rSubtotal").textContent = money.format(q.total);
     $("rShipping").textContent = freeShipping
       ? "Free · " + state.country + " (" + CONFIG.freeShippingMinQty + "+ pcs)"
-      : money.format(shipTotal) + " · " + state.country + (state.qty > 1 ? " (" + state.qty + "×)" : "");
+      : money.format(shipTotal) + " · " + state.country + " (" + weight + " total)";
     $("rVat").textContent = money.format(vatAmount);
     $("discountRow").hidden = !discountOn;
     if (discountOn) {
@@ -688,7 +709,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 
     $("fPrice").value = money.format(grandTotal);
     $("fPricePiece").value = money.format(round2(grandTotal / state.qty));
-    $("fShipping").value = freeShipping ? ("Free (" + CONFIG.freeShippingMinQty + "+ pcs)") : (money.format(shipTotal) + " (" + state.country + ")");
+    $("fShipping").value = freeShipping ? ("Free (" + CONFIG.freeShippingMinQty + "+ pcs)") : (money.format(shipTotal) + " (" + state.country + ", " + weight + ")");
     $("fVat").value = money.format(vatAmount) + " (" + CONFIG.vatPercent + "%)";
     $("fDiscount").value = discountOn ? ("-" + CONFIG.bulkDiscount.percent + "% (" + CONFIG.bulkDiscount.minQty + "+ pcs) = -" + money.format(discountAmount)) : "";
     $("fDims").value = dims;
