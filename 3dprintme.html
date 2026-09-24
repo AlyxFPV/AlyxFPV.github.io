@@ -176,6 +176,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 .note { margin: 12px 0 0; font-size: 0.82rem; color: var(--muted); }
 .error { color: var(--danger); font-weight: 600; margin: 0; }
 .error[hidden] { display: none; }
+.discount-note { margin: 10px 0 0; font-size: 0.92rem; font-weight: 600; color: var(--accent); }
 @media (prefers-reduced-motion: no-preference) {
   .choice-body, .swatch span { transition: border-color .15s, background .15s; }
 }
@@ -195,6 +196,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       </a>
     </div>
     <p>Upload an STL file, pick a filament and colour, and see the price right away. Send the order and I will reply by email to confirm the details.</p>
+    <p class="discount-note" id="discountBanner"></p>
   </header>
 
   <div class="banner" id="sentBanner" role="status">Thanks, your order was sent. I will reply to your email soon.</div>
@@ -335,7 +337,11 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     electricityPerKWh: 0.20,
     printerWearPerHour: 0.10,
     vatPercent: 24,          // Estonian standard VAT rate (24% since July 2025) — edit if it changes
-    bulkDiscount: { minQty: 2, percent: 5 },  // -5% off the total when ordering 2+ of the same piece
+    bulkDiscount: [               // tiers checked highest first; the first one the quantity qualifies for wins
+      { minQty: 10, percent: 15 },
+      { minQty: 5, percent: 10 },
+      { minQty: 2, percent: 5 }
+    ],
     shipping: {
       zones: {
         domestic: { label: "Estonia", price: 4.00 },
@@ -442,6 +448,10 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
   }
 
   function round2(x) { return Math.round(x * 100) / 100; }
+  function bulkDiscountFor(qty) {
+    for (var i = 0; i < CONFIG.bulkDiscount.length; i++) if (qty >= CONFIG.bulkDiscount[i].minQty) return CONFIG.bulkDiscount[i];
+    return null;
+  }
   function countryZone(name) {
     for (var i = 0; i < CONFIG.shipping.countries.length; i++) if (CONFIG.shipping.countries[i].name === name) return CONFIG.shipping.countries[i].zone;
     return "row";
@@ -594,6 +604,8 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       update();
     });
     $("vatLabel").textContent = "VAT (" + CONFIG.vatPercent + "%)";
+    var tiers = CONFIG.bulkDiscount.slice().reverse().map(function (t) { return t.minQty + "+ pcs −" + t.percent + "%"; }).join(" · ");
+    $("discountBanner").textContent = "Order more and save: " + tiers;
   }
 
   function buildColours() {
@@ -656,8 +668,9 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     var shipTotal = round2(shipPrice * state.qty);
     var vatAmount = round2((q.total + shipTotal) * CONFIG.vatPercent / 100);
     var rawTotal = round2(q.total + shipTotal + vatAmount);
-    var discountOn = state.qty >= CONFIG.bulkDiscount.minQty;
-    var discountAmount = discountOn ? round2(rawTotal * CONFIG.bulkDiscount.percent / 100) : 0;
+    var discountTier = bulkDiscountFor(state.qty);
+    var discountOn = !!discountTier;
+    var discountAmount = discountOn ? round2(rawTotal * discountTier.percent / 100) : 0;
     var grandTotal = round2(rawTotal - discountAmount);
     var dims = num1.format(model.size.x) + " × " + num1.format(model.size.y) + " × " + num1.format(model.size.z) + " mm";
     var weight = q.grams >= 1000 ? num1.format(q.grams / 1000) + " kg" : num1.format(q.grams) + " g";
@@ -671,7 +684,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     $("rVat").textContent = money.format(vatAmount);
     $("discountRow").hidden = !discountOn;
     if (discountOn) {
-      $("discountLabel").textContent = "Bulk discount (" + state.qty + "+ pcs, -" + CONFIG.bulkDiscount.percent + "%)";
+      $("discountLabel").textContent = "Bulk discount (" + discountTier.minQty + "+ pcs, -" + discountTier.percent + "%)";
       $("rDiscount").textContent = "−" + money.format(discountAmount);
     }
     $("rDims").textContent = dims;
@@ -682,7 +695,7 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
     $("fPricePiece").value = money.format(round2(grandTotal / state.qty));
     $("fShipping").value = money.format(shipTotal) + " (" + state.country + ")";
     $("fVat").value = money.format(vatAmount) + " (" + CONFIG.vatPercent + "%)";
-    $("fDiscount").value = discountOn ? ("-" + CONFIG.bulkDiscount.percent + "% = -" + money.format(discountAmount)) : "";
+    $("fDiscount").value = discountOn ? ("-" + discountTier.percent + "% (" + discountTier.minQty + "+ pcs) = -" + money.format(discountAmount)) : "";
     $("fDims").value = dims;
     $("fVolume").value = num1.format(q.volume / 1000) + " cm³";
     $("fWeight").value = weight;
