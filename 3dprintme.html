@@ -160,6 +160,8 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
 .field select { cursor: pointer; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 420px) { .two { grid-template-columns: 1fr; } }
+.phone-row { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
+@media (max-width: 420px) { .phone-row { grid-template-columns: 84px 1fr; } }
 .honey { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 .total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -295,6 +297,13 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
               <input type="email" id="email" name="email" required autocomplete="email">
             </div>
             <div class="field">
+              <label for="phoneNumber">Phone number</label>
+              <div class="phone-row">
+                <select id="phoneCode" name="Phone code" aria-label="Country code" required></select>
+                <input type="tel" id="phoneNumber" name="Phone number" required autocomplete="tel-national" placeholder="5xxxxxxx">
+              </div>
+            </div>
+            <div class="field">
               <label for="country">Country</label>
               <select id="country" name="Country" required autocomplete="country-name"></select>
             </div>
@@ -365,39 +374,39 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
         ] }
       },
       countries: [
-        { name: "Estonia", zone: "domestic" },
-        { name: "Latvia", zone: "baltic" },
-        { name: "Lithuania", zone: "baltic" },
-        { name: "Finland", zone: "eu" },
-        { name: "Sweden", zone: "eu" },
-        { name: "Germany", zone: "eu" },
-        { name: "Poland", zone: "eu" },
-        { name: "Netherlands", zone: "eu" },
-        { name: "Belgium", zone: "eu" },
-        { name: "France", zone: "eu" },
-        { name: "Italy", zone: "eu" },
-        { name: "Spain", zone: "eu" },
-        { name: "Austria", zone: "eu" },
-        { name: "Denmark", zone: "eu" },
-        { name: "Ireland", zone: "eu" },
-        { name: "Portugal", zone: "eu" },
-        { name: "Czechia", zone: "eu" },
-        { name: "Slovakia", zone: "eu" },
-        { name: "Hungary", zone: "eu" },
-        { name: "Romania", zone: "eu" },
-        { name: "Bulgaria", zone: "eu" },
-        { name: "Greece", zone: "eu" },
-        { name: "Croatia", zone: "eu" },
-        { name: "Slovenia", zone: "eu" },
-        { name: "Luxembourg", zone: "eu" },
-        { name: "Malta", zone: "eu" },
-        { name: "Cyprus", zone: "eu" },
-        { name: "United Kingdom", zone: "row" },
-        { name: "Norway", zone: "row" },
-        { name: "Switzerland", zone: "row" },
-        { name: "United States", zone: "row" },
-        { name: "Canada", zone: "row" },
-        { name: "Other", zone: "row" }
+        { name: "Estonia", zone: "domestic", dial: "+372" },
+        { name: "Latvia", zone: "baltic", dial: "+371" },
+        { name: "Lithuania", zone: "baltic", dial: "+370" },
+        { name: "Finland", zone: "eu", dial: "+358" },
+        { name: "Sweden", zone: "eu", dial: "+46" },
+        { name: "Germany", zone: "eu", dial: "+49" },
+        { name: "Poland", zone: "eu", dial: "+48" },
+        { name: "Netherlands", zone: "eu", dial: "+31" },
+        { name: "Belgium", zone: "eu", dial: "+32" },
+        { name: "France", zone: "eu", dial: "+33" },
+        { name: "Italy", zone: "eu", dial: "+39" },
+        { name: "Spain", zone: "eu", dial: "+34" },
+        { name: "Austria", zone: "eu", dial: "+43" },
+        { name: "Denmark", zone: "eu", dial: "+45" },
+        { name: "Ireland", zone: "eu", dial: "+353" },
+        { name: "Portugal", zone: "eu", dial: "+351" },
+        { name: "Czechia", zone: "eu", dial: "+420" },
+        { name: "Slovakia", zone: "eu", dial: "+421" },
+        { name: "Hungary", zone: "eu", dial: "+36" },
+        { name: "Romania", zone: "eu", dial: "+40" },
+        { name: "Bulgaria", zone: "eu", dial: "+359" },
+        { name: "Greece", zone: "eu", dial: "+30" },
+        { name: "Croatia", zone: "eu", dial: "+385" },
+        { name: "Slovenia", zone: "eu", dial: "+386" },
+        { name: "Luxembourg", zone: "eu", dial: "+352" },
+        { name: "Malta", zone: "eu", dial: "+356" },
+        { name: "Cyprus", zone: "eu", dial: "+357" },
+        { name: "United Kingdom", zone: "row", dial: "+44" },
+        { name: "Norway", zone: "row", dial: "+47" },
+        { name: "Switzerland", zone: "row", dial: "+41" },
+        { name: "United States", zone: "row", dial: "+1" },
+        { name: "Canada", zone: "row", dial: "+1" },
+        { name: "Other", zone: "row", dial: "" }
       ]
     },
     materials: [
@@ -607,17 +616,35 @@ legend { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; padding: 0; 
       list.appendChild(label);
     });
   }
+  function dialFor(name) {
+    for (var i = 0; i < CONFIG.shipping.countries.length; i++) if (CONFIG.shipping.countries[i].name === name) return CONFIG.shipping.countries[i].dial;
+    return "";
+  }
+
   function buildCountries() {
     var sel = $("country");
+    var codeSel = $("phoneCode");
     sel.innerHTML = "";
+    codeSel.innerHTML = "";
+    var lastDial = "";
     CONFIG.shipping.countries.forEach(function (c) {
       var opt = document.createElement("option");
       opt.value = c.name; opt.textContent = c.name;
       if (c.name === state.country) opt.selected = true;
       sel.appendChild(opt);
+
+      if (c.dial && c.dial !== lastDial) {
+        var copt = document.createElement("option");
+        copt.value = c.dial; copt.textContent = c.dial;
+        if (c.dial === dialFor(state.country)) copt.selected = true;
+        codeSel.appendChild(copt);
+        lastDial = c.dial;
+      }
     });
     sel.addEventListener("change", function () {
       state.country = sel.value;
+      var newDial = dialFor(sel.value);
+      if (newDial) codeSel.value = newDial;
       update();
     });
     $("vatLabel").textContent = "VAT (" + CONFIG.vatPercent + "%)";
